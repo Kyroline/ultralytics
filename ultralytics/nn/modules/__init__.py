@@ -18,11 +18,13 @@ Examples:
 """
 
 from .block import (
+    ASPP,
     C1,
     C2,
     C2PSA,
     C3,
     C3TR,
+    CBAMLayer,
     CIB,
     DFL,
     ELAN1,
@@ -103,6 +105,8 @@ from .transformer import (
 )
 
 __all__ = (
+    "ASPP",
+    "CBAMLayer",
     "Conv",
     "Conv2",
     "LightConv",
