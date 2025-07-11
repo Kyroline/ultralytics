@@ -11,8 +11,10 @@ from ultralytics.utils.torch_utils import fuse_conv_and_bn
 
 from .conv import Conv, DWConv, GhostConv, LightConv, RepConv, autopad
 from .transformer import TransformerBlock
+from ultralytics.nn.modules.conv import CBAM
 
 __all__ = (
+    "ASPP",
     "DFL",
     "HGBlock",
     "HGStem",
@@ -23,6 +25,7 @@ __all__ = (
     "C3",
     "C2f",
     "C2fAttn",
+    "CBAMLayer",
     "ImagePoolingAttn",
     "ContrastiveHead",
     "BNContrastiveHead",
@@ -2031,3 +2034,60 @@ class SAVPE(nn.Module):
         aggregated = score.transpose(-2, -3) @ x.reshape(B, self.c, C // self.c, -1).transpose(-1, -2)
 
         return F.normalize(aggregated.transpose(-2, -3).reshape(B, Q, -1), dim=-1, p=2)
+
+class CBAMLayer(nn.Module):
+    def __init__(self, c1, c2=None, reduction=16, kernel_size=7):
+        super().__init__()
+        c2 = c2 or c1  # jika tidak ada c2, pakai c1
+        self.channel_att = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Conv2d(c1, c1 // reduction, 1, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(c1 // reduction, c2, 1, bias=False),
+            nn.Sigmoid()
+        )
+        self.spatial_att = nn.Sequential(
+            nn.Conv2d(2, 1, kernel_size, padding=kernel_size // 2, bias=False),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x):
+        # Channel Attention
+        ca = self.channel_att(x)
+        x = x * ca
+
+        # Spatial Attention
+        avg_out = torch.mean(x, dim=1, keepdim=True)
+        max_out, _ = torch.max(x, dim=1, keepdim=True)
+        sa = self.spatial_att(torch.cat([avg_out, max_out], dim=1))
+        x = x * sa
+        return x
+    
+class ASPP(nn.Module):
+    def __init__(self, c1, c2):
+        super().__init__()
+
+        self.branch1 = Conv(c1, c2, k=1, p=0)
+        self.branch2 = Conv(c1, c2, k=3, p=2, d=2)
+        self.branch3 = Conv(c1, c2, k=3, p=4, d=4)
+        self.branch4 = Conv(c1, c2, k=3, p=6, d=6)
+
+        self.global_avg_pool = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            Conv(c1, c2, k=1)
+        )
+
+        self.project = Conv(c2 * 5, c1, k=1)
+
+    def forward(self, x):
+        size = x.shape[2:]
+
+        b1 = self.branch1(x)
+        b2 = self.branch2(x)
+        b3 = self.branch3(x)
+        b4 = self.branch4(x)
+        b5 = self.global_avg_pool(x)
+        b5 = F.interpolate(b5, size=size, mode='bilinear', align_corners=False)
+
+        out = torch.cat([b1, b2, b3, b4, b5], dim=1)
+        return self.project(out)
