@@ -53,6 +53,8 @@ __all__ = (
     "C2fCIB",
     "Attention",
     "PSA",
+    "PANet",
+    "FPN",
     "SCDown",
     "TorchVision",
 )
@@ -2091,3 +2093,27 @@ class ASPP(nn.Module):
 
         out = torch.cat([b1, b2, b3, b4, b5], dim=1)
         return self.project(out)
+    
+class FPN(nn.Module):
+    def __init__(self, c1, c2):
+        super().__init__()
+        self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
+        self.conv1 = Conv(c1, c2, k=1)
+        self.conv2 = Conv(c2 + c2, c2, k=3)  # after concat with lateral
+
+    def forward(self, x, lateral):
+        x = self.upsample(x)
+        x = self.conv1(x)
+        x = torch.cat([x, lateral], dim=1)
+        return self.conv2(x)
+    
+class PANet(nn.Module):
+    def __init__(self, c1, c2):
+        super().__init__()
+        self.down = Conv(c1, c2, k=3, s=2)  # downsample
+        self.conv = Conv(c2 + c2, c2, k=3)  # after concat
+
+    def forward(self, x, shortcut):
+        x = self.down(x)
+        x = torch.cat([x, shortcut], dim=1)
+        return self.conv(x)

@@ -61,6 +61,8 @@ from .block import (
     ResNetLayer,
     SCDown,
     TorchVision,
+    PANet,
+    FPN
 )
 from .conv import (
     CBAM,
@@ -183,4 +185,6 @@ __all__ = (
     "TorchVision",
     "Index",
     "A2C2f",
+    "PANet",
+    "FPN"
 )
