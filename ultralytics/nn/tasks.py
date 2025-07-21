@@ -1742,6 +1742,19 @@ def parse_model(d, ch, verbose=True):
             c2 = args[0]
             c1 = ch[f]
             args = [*args[1:]]
+        # elif m is FPN or m is PANet:
+        #     f = f if isinstance(f, list) else [f]
+
+        #     if len(f) == 1:
+        #         c1 = ch[f[0]]
+        #         c2 = 0
+        #     elif len(f) == 2:
+        #         c1, c2 = ch[f[0]], ch[f[1]]
+        #     else:
+        #         raise ValueError(f"{m.__name__} expects 1 or 2 inputs, got {len(f)}")
+
+        #     out_channels = args[0]
+        #     args = [c1, c2, out_channels]
         else:
             c2 = ch[f]
 
