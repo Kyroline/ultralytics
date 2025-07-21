@@ -2099,21 +2099,23 @@ class FPN(nn.Module):
         super().__init__()
         self.upsample = nn.Upsample(scale_factor=2, mode='nearest')
         self.conv1 = Conv(c1, c2, k=1)
-        self.conv2 = Conv(c2 + c2, c2, k=3)  # after concat with lateral
+        self.conv2 = Conv(c2 + c2, c2, k=3)
 
-    def forward(self, x, lateral):
+    def forward(self, x):
+        x, lateral = x  # menerima list: [main, lateral]
         x = self.upsample(x)
         x = self.conv1(x)
         x = torch.cat([x, lateral], dim=1)
-        return self.conv2(x)
-    
+        return self.conv2(x)  
+  
 class PANet(nn.Module):
     def __init__(self, c1, c2):
         super().__init__()
-        self.down = Conv(c1, c2, k=3, s=2)  # downsample
-        self.conv = Conv(c2 + c2, c2, k=3)  # after concat
+        self.down = Conv(c1, c2, k=3, s=2)
+        self.conv = Conv(c2 + c2, c2, k=3)
 
-    def forward(self, x, shortcut):
+    def forward(self, x):
+        x, shortcut = x  # menerima list: [main, shortcut]
         x = self.down(x)
         x = torch.cat([x, shortcut], dim=1)
         return self.conv(x)
